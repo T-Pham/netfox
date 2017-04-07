@@ -12,6 +12,13 @@ public class NFXProtocol: NSURLProtocol
 {
     var connection: NSURLConnection?
     var model: NFXHTTPModel?
+
+    var session: NSURLSession!
+
+    override init(request: NSURLRequest, cachedResponse: NSCachedURLResponse?, client: NSURLProtocolClient?) {
+        super.init(request: request, cachedResponse: cachedResponse, client: client)
+        session = NSURLSession(configuration: NSURLSessionConfiguration.defaultSessionConfiguration(), delegate: self, delegateQueue: nil)
+    }
     
     override public class func canInitWithRequest(request: NSURLRequest) -> Bool
     {
@@ -62,8 +69,7 @@ public class NFXProtocol: NSURLProtocol
         self.model?.saveRequest(req)
                 
         NSURLProtocol.setProperty("1", forKey: "NFXInternal", inRequest: req)
-        
-        let session = NSURLSession.sharedSession()
+
         session.dataTaskWithRequest(req, completionHandler: {data, response, error in
             
             if error != nil {
@@ -110,4 +116,13 @@ public class NFXProtocol: NSURLProtocol
         NSNotificationCenter.defaultCenter().postNotificationName("NFXReloadData", object: nil)
     }
     
+}
+
+extension NFXProtocol: NSURLSessionTaskDelegate {
+
+    public func URLSession(session: NSURLSession, task: NSURLSessionTask, willPerformHTTPRedirection response: NSHTTPURLResponse, newRequest request: NSURLRequest, completionHandler: (NSURLRequest?) -> Void) {
+        let mutableRequest = request.mutableCopy() as! NSMutableURLRequest
+        NSURLProtocol.removePropertyForKey("NFXInternal", inRequest: mutableRequest)
+        client?.URLProtocol(self, wasRedirectedToRequest: mutableRequest, redirectResponse: response)
+    }
 }
